@@ -27,18 +27,23 @@ def create_user(request):
             age = data.get("age", 0)
             top_group = data.get("top_group", 0)
             top_percent = data.get("top_percent", 0)
+            is_premium = data.get("is_premium", False)
             # Проверка на существование пользователя
             existing_user = users_collection.find_one({"telegram_id": telegram_id})
             if existing_user:
                 return JsonResponse({"status": "error", "message": "User already exists"}, status=400)
+            balance = age
 
+            # Проверка на премиум и добавление бонусов
+            premium_bonus = 1000 if is_premium else 0
+            balance += premium_bonus
             # Создание объекта User
             new_user = {
                 "username": username,
                 "telegram_id": telegram_id,
                 "age": age,
                 "avatar": None,
-                "balance": age,
+                "balance": balance,
                 "is_premium": data.get("is_premium", False),
                 "last_seen": datetime.now(),
                 "last_reward_date" : datetime.now(),
@@ -60,9 +65,9 @@ def create_user(request):
                 "game": 0.0,
                 "daily": 0.0,
                 "frens": 0.0,
-                "premium": 0,
+                "premium": premium_bonus,
                 "tasks": 0,
-                "total": +age
+                "total": age + premium_bonus
             })
             frens_collection.insert_one({"telegram_id": telegram_id, "count": 0, "frens": []})
 
@@ -100,7 +105,6 @@ def get_user(request):
             # Parse the JSON body
             body_unicode = request.body.decode('utf-8')
             body_data = json.loads(body_unicode)
-
             # Extract telegram_id from the JSON data
             telegram_id = body_data.get('user_id')
             if not telegram_id:
@@ -110,6 +114,23 @@ def get_user(request):
             user = users_collection.find_one({"telegram_id": telegram_id})
             if not user:
                 return JsonResponse({"status": "error", "message": "User not found"}, status=404)
+
+                # Check if the user is now premium and update balance if they were not premium before
+                if user.get('is_premium', False):
+                    rewards = rewards_collection.find_one({"telegram_id": telegram_id})
+                    if rewards:
+                        # If the user was not premium before, apply the premium bonuses
+                        if not rewards.get('premium_bonus_applied', False):
+                            users_collection.update_one(
+                                {"telegram_id": telegram_id},
+                                {"$inc": {"balance": +1000}}
+                            )
+
+                            rewards_collection.update_one(
+                                {"telegram_id": telegram_id},
+                                {"$inc": {"premium": 1000}, "$set": {"premium_bonus_applied": True}}
+                            )
+
             now = datetime.utcnow()
             users_collection.update_one(
                 {"telegram_id": telegram_id},
