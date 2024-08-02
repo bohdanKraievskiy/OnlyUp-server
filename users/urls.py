@@ -8,6 +8,7 @@ urlpatterns = [
     path('users/<str:telegram_id>/frens/', views.get_user_frens, name='get_user_frens'),
     path('users/<str:telegram_id>/tasks/', views.get_user_tasks, name='get_user_tasks'),
     path('users/update_balance/', views.update_balance, name='update_balance'),
+    path('users/update_game_balance/', views.update_game_balance, name='update_game_balance'),
     path('users/update_attempts/', views.update_attempts, name='update_attempts'),
     path('leaderboard/', views.get_leaderboard, name='get_leaderboard'),
     path('account_date/insert/', views.insert_account_date, name='insert_account_date'),  # Updated path

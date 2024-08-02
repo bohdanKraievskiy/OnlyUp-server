@@ -86,7 +86,7 @@ def create_user(request):
             leaderboard_entry = {
                 "telegram_id": telegram_id,
                 "username": username,
-                "score": age,  # Initial score, you can modify this as per your requirements
+                "score": balance,  # Initial score, you can modify this as per your requirements
                 "position": 0  # This will be updated when fetching the leaderboard
             }
             leaderboard_collection.insert_one(leaderboard_entry)
@@ -156,7 +156,7 @@ def update_balance(request):
             data = json.loads(request.body)
             telegram_id = data.get("telegram_id")
             new_balance = data.get("balance")
-
+            update_user_score(telegram_id,new_balance)
             if telegram_id is None or new_balance is None:
                 return JsonResponse({"status": "error", "message": "Telegram ID and balance are required"}, status=400)
 
@@ -173,6 +173,58 @@ def update_balance(request):
             # Convert ObjectId to string for JSON serialization
             result['_id'] = str(result['_id'])
 
+            return JsonResponse({"status": "success", "message": "Balance updated successfully", "user": result}, status=200)
+
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+    return JsonResponse({"status": "error", "message": "Invalid request method"}, status=400)
+@csrf_exempt
+def update_game_balance(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            telegram_id = data.get("telegram_id")
+            new_balance = data.get("balance")
+            update_user_score(telegram_id,new_balance)
+            if telegram_id is None or new_balance is None:
+                return JsonResponse({"status": "error", "message": "Telegram ID and balance are required"}, status=400)
+
+            # Update the user's balance
+            result = users_collection.find_one_and_update(
+                {"telegram_id": int(telegram_id)},
+                {"$set": {"balance": new_balance}},
+                return_document=ReturnDocument.AFTER
+            )
+
+            if not result:
+                return JsonResponse({"status": "error", "message": "User not found"}, status=404)
+
+            # Convert ObjectId to string for JSON serialization
+            result['_id'] = str(result['_id'])
+            rewards_data = rewards_collection.find_one({"telegram_id": int(telegram_id)})
+            if not rewards_data:
+                # If no reward document exists, create one
+                rewards_collection.insert_one({
+                    "telegram_id": telegram_id,
+                    "age": 0,
+                    "boost": 0,
+                    "game": +new_balance,
+                    "daily": 0.0,
+                    "frens": 0.0,
+                    "premium": 0,
+                    "tasks": 0,
+                    "total": +new_balance
+                })
+            else:
+                # Update existing rewards
+                rewards_collection.update_one(
+                    {"telegram_id": telegram_id},
+                    {"$inc": {
+                        "game": +new_balance,
+                        "total": +new_balance
+                    }}
+                )
             return JsonResponse({"status": "success", "message": "Balance updated successfully", "user": result}, status=200)
 
         except Exception as e:
@@ -371,9 +423,9 @@ def get_user_stats(request, telegram_id):
 
 # Function to update a user's score
 def update_user_score(telegram_id, score):
-    user = leaderboard_collection.find_one({'telegram_id': telegram_id})
+    user = leaderboard_collection.find_one({'telegram_id': int(telegram_id)})
     if user:
-        leaderboard_collection.update_one({'telegram_id': telegram_id}, {'$set': {'score': score}})
+        leaderboard_collection.update_one({'telegram_id': int(telegram_id)}, {'$set': {'score': score}})
     else:
         # Insert new entry if user does not exist
         new_entry = LeaderboardEntry(position=0, score=score, telegram_id=telegram_id, username='Unknown')
