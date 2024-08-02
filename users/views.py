@@ -291,8 +291,7 @@ def get_leaderboard(request):
 
         if user_telegram_id:
             try:
-                user_telegram_id = str(user_telegram_id)
-                print(user_telegram_id)
+                user_telegram_id = int(user_telegram_id)
                 user_entry = leaderboard_collection.find_one({"telegram_id": user_telegram_id})
 
                 if user_entry:
