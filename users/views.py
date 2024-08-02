@@ -140,7 +140,7 @@ def update_balance(request):
 
             # Update the user's balance
             result = users_collection.find_one_and_update(
-                {"telegram_id": telegram_id},
+                {"telegram_id": int(telegram_id)},
                 {"$set": {"balance": new_balance}},
                 return_document=ReturnDocument.AFTER
             )
@@ -205,7 +205,7 @@ def get_user_rewards(request, telegram_id):
     if request.method == 'GET':
         try:
             # Получение данных о наградах
-            reward = rewards_collection.find_one({"telegram_id": telegram_id}, {"_id": 0})
+            reward = rewards_collection.find_one({"telegram_id": int(telegram_id)}, {"_id": 0})
             if not reward:
                 return JsonResponse({"status": "error", "message": "No rewards found"}, status=404)
 
@@ -221,7 +221,7 @@ def get_user_frens(request, telegram_id):
     if request.method == 'GET':
         try:
             # Получение данных о друзьях
-            frens = frens_collection.find_one({"telegram_id": telegram_id}, {"_id": 0})
+            frens = frens_collection.find_one({"telegram_id": int(telegram_id)}, {"_id": 0})
             if not frens:
                 return JsonResponse({"status": "error", "message": "No frens found"}, status=404)
 
@@ -238,7 +238,7 @@ def get_user_tasks(request, telegram_id):
     if request.method == 'GET':
         try:
             # Получение данных о задачах
-            tasks_data = tasks_collection.find_one({"telegram_id": telegram_id}, {"_id": 0})
+            tasks_data = tasks_collection.find_one({"telegram_id": int(telegram_id)}, {"_id": 0})
             if not tasks_data or not tasks_data.get("tasks"):
                 return JsonResponse({"status": "error", "message": "No tasks found"}, status=404)
 
@@ -395,7 +395,14 @@ def get_account_date_by_telegram_id(request):
     if request.method == 'GET':
         try:
             telegram_id = request.GET.get("telegram_id")
-            # Fetch record from accountsDates collection for the specific telegram_id
+            if telegram_id is None:
+                return JsonResponse({"status": "error", "message": "telegram_id parameter is required"}, status=400)
+
+            # Validate and convert telegram_id to integer
+            try:
+                telegram_id = int(telegram_id)
+            except ValueError:
+                return JsonResponse({"status": "error", "message": "Invalid telegram_id format"}, status=400)
             account_date = accounts_dates_collection.find_one({"telegram_id": int(telegram_id)}, {"_id": 0})
 
             if not account_date:
