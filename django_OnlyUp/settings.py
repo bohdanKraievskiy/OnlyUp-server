@@ -73,9 +73,10 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'django_OnlyUp.wsgi.application'
-
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Разрешаем React приложению отправлять запросы
+    "http://localhost:3001",  # Разрешаем React приложению отправлять запросы
 ]
 
 # Database

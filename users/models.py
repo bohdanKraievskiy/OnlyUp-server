@@ -5,20 +5,21 @@ MONGO_DB = settings.MONGO_DB
 class User:
     def __init__(self, username, age=0, avatar=None, balance=0.0, is_premium=False,
                  last_seen=None, reference=None, streak=None, telegram_id=None,
-                 top_group=0, top_percent=0, wallet=None):
+                 top_group=0, top_percent=0, wallet=None, last_reward_date=None,attempts_left = 20):
         self.username = username
         self.age = age
         self.avatar = avatar
         self.balance = balance
         self.is_premium = is_premium
         self.last_seen = last_seen
+        self.last_reward_date = last_reward_date
         self.reference = reference
         self.streak = streak
         self.telegram_id = telegram_id
         self.top_group = top_group
         self.top_percent = top_percent
         self.wallet = wallet
-
+        self.attempts_left = attempts_left
     def __str__(self):
         return self.username
 
@@ -76,6 +77,16 @@ class Task:
             "tasks": self.tasks,
         }
 
+
+tasks = [
+    {"title": "Follow OnlyUP on X", "url": "https://twitter.com/OnlyUP1B", "reward": "+1000",
+     "completed": False},
+    {"title": "Join our telegram chat", "url": "https://t.me/OnlyUP_Official_chat",
+     "reward": "+1000", "completed": False},
+    {"title": "OnlyUp Community", "url": "https://t.me/OnlyUP_Announcements", "reward": "+1000",
+     "completed": False}
+]
+
 class LeaderboardEntry:
     def __init__(self, position, score, telegram_id, username):
         self.position = position
@@ -89,4 +100,15 @@ class LeaderboardEntry:
             'score': self.score,
             'telegram_id': self.telegram_id,
             'username': self.username
+        }
+
+class DateOfCreation:
+    def __init__(self, telegram_id, date):
+        self.telegram_id = telegram_id
+        self.date = date
+
+    def to_dict(self):
+        return {
+            "telegram_id": self.telegram_id,
+            "date": self.date,
         }
