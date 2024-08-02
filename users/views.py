@@ -105,7 +105,6 @@ def get_user(request):
             # Parse the JSON body
             body_unicode = request.body.decode('utf-8')
             body_data = json.loads(body_unicode)
-
             # Extract telegram_id from the JSON data
             telegram_id = body_data.get('user_id')
             if not telegram_id:
