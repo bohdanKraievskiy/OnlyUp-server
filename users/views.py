@@ -609,7 +609,8 @@ def daily_reward(request):
                     {"$set": {
                         "streak": streak,
                         "balance": new_balance,
-                        "last_reward_date": datetime.now()  # Store as datetime for consistency
+                        "last_reward_date": datetime.now(),
+                        "attempts_left": 20
                     }},
                     return_document=ReturnDocument.AFTER
                 )
@@ -759,42 +760,4 @@ def update_attempts(request):
 
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
-    return JsonResponse({"status": "error", "message": "Invalid request method"}, status=400)
-
-@csrf_exempt
-def add_friend(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            telegram_id = data.get("telegram_id")
-            second_telegram_id = data.get("second_telegram_id")
-
-            if not telegram_id or not second_telegram_id:
-                return JsonResponse({"status": "error", "message": "Both telegram_id and second_telegram_id are required"}, status=400)
-
-            friend_exists = frens_collection.find_one({"frens": telegram_id})
-            if friend_exists:
-                return JsonResponse({"status": "error", "message": "User is already a friend for another user"}, status=400)
-
-            second_user = users_collection.find_one({"telegram_id": telegram_id})
-            if second_user:
-                return JsonResponse({"status": "error", "message": "User exists"}, status=404)
-
-            frens_collection.find_one_and_update(
-                {"telegram_id": second_telegram_id},
-                {"$push": {"frens": telegram_id}, "$inc": {"count": 1}},
-                return_document=ReturnDocument.AFTER
-            )
-
-            updated_user = users_collection.find_one_and_update(
-                {"telegram_id": second_telegram_id},
-                {"$inc": {"balance": 1000}},
-                return_document=ReturnDocument.AFTER
-            )
-
-            return JsonResponse({"status": "success", "message": "Friend added successfully and balance updated", "user": updated_user}, status=200)
-
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=500)
-
     return JsonResponse({"status": "error", "message": "Invalid request method"}, status=400)
