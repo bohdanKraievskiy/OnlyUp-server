@@ -185,6 +185,7 @@ def update_game_balance(request):
             data = json.loads(request.body)
             telegram_id = data.get("telegram_id")
             new_balance = data.get("balance")
+            scoreRef=data.get("scoreRef")
             update_user_score(telegram_id,new_balance)
             if telegram_id is None or new_balance is None:
                 return JsonResponse({"status": "error", "message": "Telegram ID and balance are required"}, status=400)
@@ -208,20 +209,20 @@ def update_game_balance(request):
                     "telegram_id": telegram_id,
                     "age": 0,
                     "boost": 0,
-                    "game": +new_balance,
+                    "game": +scoreRef,
                     "daily": 0.0,
                     "frens": 0.0,
                     "premium": 0,
                     "tasks": 0,
-                    "total": +new_balance
+                    "total": +scoreRef
                 })
             else:
                 # Update existing rewards
                 rewards_collection.update_one(
                     {"telegram_id": telegram_id},
                     {"$inc": {
-                        "game": +new_balance,
-                        "total": +new_balance
+                        "game": +scoreRef,
+                        "total": +scoreRef
                     }}
                 )
             return JsonResponse({"status": "success", "message": "Balance updated successfully", "user": result}, status=200)
@@ -297,6 +298,10 @@ def get_user_frens(request, telegram_id):
             frens = frens_collection.find_one({"telegram_id": int(telegram_id)}, {"_id": 0})
             if not frens:
                 return JsonResponse({"status": "error", "message": "No frens found"}, status=404)
+
+            frens = frens_collection.find_one({"frens": int(telegram_id)}, {"_id": 0})
+            if not frens:
+                return JsonResponse({"status": "error", "message": "No frens found in frens collections"}, status=404)
 
             return JsonResponse({"status": "success", "frens": frens}, status=200)
 
