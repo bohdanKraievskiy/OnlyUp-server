@@ -609,7 +609,8 @@ def daily_reward(request):
                     {"$set": {
                         "streak": streak,
                         "balance": new_balance,
-                        "last_reward_date": datetime.now()  # Store as datetime for consistency
+                        "last_reward_date": datetime.now(),
+                        "attempts_left": 20
                     }},
                     return_document=ReturnDocument.AFTER
                 )
