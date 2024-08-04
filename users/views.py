@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
@@ -688,6 +687,11 @@ def daily_reward(request):
                 # Update the user's streak, balance, and last_reward_date
                 reward = calculate_reward(streak)
                 new_balance = user.get('balance', 0) + reward
+
+		users_collection.update_one(
+                    {"telegram_id": telegram_id},
+                    {"$set": {"attempts_left": 20}}
+                )
 
                 # Update the database with new streak and balance
                 result = users_collection.find_one_and_update(
