@@ -17,3 +17,4 @@ urlpatterns = [
     path('daily_reward/', views.daily_reward, name='daily_reward'),
     path('add_friend/', views.add_friend, name='add_friend')
 ]
+

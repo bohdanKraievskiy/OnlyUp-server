@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
@@ -300,17 +301,31 @@ def get_user_rewards(request, telegram_id):
     """Получение данных о наградах пользователя"""
     if request.method == 'GET':
         try:
+            telegram_id = int(telegram_id)
+
             # Получение данных о наградах
-            reward = rewards_collection.find_one({"telegram_id": int(telegram_id)}, {"_id": 0})
+            reward = rewards_collection.find_one({"telegram_id": telegram_id}, {"_id": 0})
             if not reward:
                 return JsonResponse({"status": "error", "message": "No rewards found"}, status=404)
 
+            # Получение баланса пользователя
+            user_balance_entry = users_collection.find_one({"telegram_id": telegram_id}, {"balance": 1})
+            if not user_balance_entry:
+                return JsonResponse({"status": "error", "message": "User not found in users collection"}, status=404)
+
+            # Добавление баланса в данные о наградах
+            reward["total"] = user_balance_entry.get("balance", 0)
+
             return JsonResponse({"status": "success", "reward": reward}, status=200)
+
+        except ValueError:
+            return JsonResponse({"status": "error", "message": "Invalid telegram_id format"}, status=400)
 
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
     return JsonResponse({"status": "error", "message": "Invalid request method"}, status=400)
+
 @csrf_exempt
 def get_user_frens(request, telegram_id):
     """Получение данных о друзьях пользователя"""
@@ -386,24 +401,65 @@ def get_leaderboard(request):
             for index, entry in enumerate(leaderboard_cursor)
         ]
 
-        # Получение информации о текущем пользователе (замените 'your_telegram_id' на фактический идентификатор)
+        # Получение информации о текущем пользователе
         user_telegram_id = request.GET.get("telegram_id")
 
         if user_telegram_id:
             try:
                 user_telegram_id = int(user_telegram_id)
+
+                # Find the user's position and score
                 user_entry = leaderboard_collection.find_one({"telegram_id": user_telegram_id})
 
                 if user_entry:
+                    user_position = next((i for i, entry in enumerate(leaderboard) if entry["telegram_id"] == user_telegram_id), None)
                     user_stats = {
-                        "position": next((i for i, entry in enumerate(leaderboard) if entry["telegram_id"] == user_telegram_id), None) + 1,
+                        "position": user_position + 1 if user_position is not None else None,
                         "score": user_entry["score"]
                     }
+
+                    # Fetch friends' telegram_ids from the 'frens' collection
+                    frens_entry = frens_collection.find_one({"telegram_id": user_telegram_id})
+                    friends_ids = frens_entry["frens"] if frens_entry else []
+
+                    # Convert friends_ids to integers for querying the users collection
+                    friends_ids_int = list(map(int, friends_ids))
+
+                    # Fetch friends' usernames from the 'users' collection
+                    friends_usernames_cursor = users_collection.find(
+                        {"telegram_id": {"$in": friends_ids_int}},
+                        {"telegram_id": 1, "username": 1}
+                    )
+
+                    # Convert the cursor to a list
+                    friends_usernames = list(friends_usernames_cursor)
+
+                    # Print friends_usernames for debugging
+                    print("Friends Usernames:", friends_usernames)
+
+                    # Create friends' statistics
+                    friends_stats = []
+                    for friend in friends_usernames:
+                        friend_id = friend["telegram_id"]
+                        friend_username = friend.get("username",
+                                                     "Unknown")  # Use a default value if username is missing
+                        friend_entry = leaderboard_collection.find_one({"telegram_id": friend_id})
+                        if friend_entry:
+                            friend_position = next(
+                                (i for i, entry in enumerate(leaderboard) if entry["telegram_id"] == friend_id), None)
+                            friends_stats.append({
+                                "position": friend_position + 1 if friend_position is not None else None,
+                                "telegram_id": friend_id,
+                                "score": friend_entry["score"],
+                                "username": friend_username
+                            })
                 else:
                     user_stats = {
                         "position": None,
                         "score": None
                     }
+                    friends_stats = []
+
             except ValueError:
                 return JsonResponse({"status": "error", "message": "Invalid telegram_id format"}, status=400)
         else:
@@ -411,11 +467,13 @@ def get_leaderboard(request):
                 "position": None,
                 "score": None
             }
+            friends_stats = []
 
         return JsonResponse({
             "board": leaderboard,
             "count": len(leaderboard),
-            "me": user_stats
+            "me": user_stats,
+            "friends_stats": friends_stats
         })
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
