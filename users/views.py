@@ -7,6 +7,28 @@ from .models import LeaderboardEntry,DateOfCreation
 from pymongo import ReturnDocument
 from pymongo import DESCENDING
 from bson import ObjectId
+import requests
+
+def check_user_membership(user_id):
+    url = f"https://api.telegram.org/bot6580109315:AAF3h4wDEwucEMK7yuo8YCAHIisgTLwTzEg/getChatMember?chat_id=-1002167648707&user_id={user_id}"
+    
+    try:
+        response = requests.get(url)
+        data = response.json()
+
+        if data.get('ok') and data.get('result'):
+            status = data['result']['status']
+            if status in {'member', 'administrator', 'creator'}:
+                return True
+            else:
+                return False
+        else:
+            print(f"Failed to get chat member status: {data.get('description')}")
+            return False
+    except Exception as error:
+        print(f"Error checking user membership: {error}")
+        return False
+    
 # Получение коллекции пользователей
 users_collection = settings.MONGO_DB['users']
 rewards_collection = settings.MONGO_DB['rewards']
@@ -505,6 +527,12 @@ def verify_task(request):
             data = json.loads(request.body)
             telegram_id = data.get("telegram_id")
             task_title = data.get("task")
+
+            if task_title in {"Join our telegram chat", "OnlyUp Community"}:
+                status = check_user_membership(telegram_id)
+                if not status:
+                    return JsonResponse({"status": "error", "message": "User is not a member of the required chat"}, status=400)
+
             reward_value = data.get("reward")
             if not telegram_id or not task_title:
                 return JsonResponse({"status": "error", "message": "Missing telegram_id or task"}, status=400)
@@ -609,8 +637,7 @@ def daily_reward(request):
                     {"$set": {
                         "streak": streak,
                         "balance": new_balance,
-                        "last_reward_date": datetime.now(),
-                        "attempts_left": 20
+                        "last_reward_date": datetime.now()  # Store as datetime for consistency
                     }},
                     return_document=ReturnDocument.AFTER
                 )
@@ -760,4 +787,45 @@ def update_attempts(request):
 
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    return JsonResponse({"status": "error", "message": "Invalid request method"}, status=400)
+
+@csrf_exempt
+def add_friend(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            telegram_id = int(data.get("telegram_id"))
+            second_telegram_id = int(data.get("second_telegram_id"))
+
+            if not telegram_id or not second_telegram_id:
+                return JsonResponse({"status": "error", "message": "Both telegram_id and second_telegram_id are required"}, status=400)
+
+            user_status = users_collection.find_one({"telegram_id": telegram_id})
+            if user_status:
+                return JsonResponse({"status": "error", "message": "User exists"}, status=404)
+
+            friend_exists = frens_collection.find_one({"frens": telegram_id})
+            if friend_exists:
+                return JsonResponse({"status": "error", "message": "User is already a friend for another user"}, status=400)
+
+            update_result = frens_collection.find_one_and_update(
+                {"telegram_id": second_telegram_id},
+                {"$push": {"frens": telegram_id}, "$inc": {"count": 1}},
+                return_document=ReturnDocument.AFTER
+            )
+
+            if not update_result:
+                return JsonResponse({"status": "error", "message": "Second user not found"}, status=404)
+
+            updated_user = users_collection.find_one_and_update(
+                {"telegram_id": second_telegram_id},
+                {"$inc": {"balance": 250}},
+                return_document=ReturnDocument.AFTER
+            )
+
+            return JsonResponse({"status": "success", "message": "Friend added successfully and balance updated", "user": updated_user}, status=200)
+
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
     return JsonResponse({"status": "error", "message": "Invalid request method"}, status=400)
