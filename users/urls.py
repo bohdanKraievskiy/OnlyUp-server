@@ -14,5 +14,6 @@ urlpatterns = [
     path('account_date/insert/', views.insert_account_date, name='insert_account_date'),  # Updated path
     path('account_date/', views.get_account_date_by_telegram_id, name='get_account_date_by_telegram_id'),
     path('tasks/verify/', views.verify_task, name='verify_task'),  # New endpoint
-    path('daily_reward/', views.daily_reward, name='daily_reward'),  # Add this line
+    path('daily_reward/', views.daily_reward, name='daily_reward'),
+    path('add_friend/', views.add_friend, name='add_friend')
 ]
